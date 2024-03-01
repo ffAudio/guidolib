@@ -42,7 +42,8 @@ GROctava::GROctava( GRStaff * staff, const NVstring & text, const AROctava* ar, 
 	sse->startflag = GRSystemStartEndStruct::LEFTMOST;
 	sse->p = (void *) getNewGRSaveStruct();
 	addSystemStartEndStruct (sse);
-
+	setGRStaff(staff);
+	
 	mNeedsSpring = 1;
 	float x = 0;
 	float y = 0;
@@ -62,6 +63,11 @@ GROctava::GROctava( GRStaff * staff, const NVstring & text, const AROctava* ar, 
 
 GROctava::~GROctava()
 {
+}
+
+void GROctava::accept (GRVisitor& visitor) {
+	visitor.visitStart (this);
+	visitor.visitEnd (this);
 }
 
 bool GROctava::DeleteStaff(GRStaff * grstaff)
@@ -104,9 +110,11 @@ NVRect GROctava::getExtensionLine (const NEPointerList * assoc, GuidoPos start, 
 	float staffTop		= space * -0.5f;
 	float staffBottom	= staffTop + fStaff->getDredgeSize() + space * 2.5f;
 	GuidoPos pos = start ? start :  assoc->GetHeadPosition();
+	const GRNotationElement* first = nullptr;
 //cerr << "------------- GROctava::getExtensionLine " << endl;
 	while (pos != end) {
 		const GRNotationElement* el = assoc->GetNext(pos);
+		if (!first) first = el;
 		NVRect bb = getEltBox(el);
 //cerr << "... " << el << " " << bb << endl;
 		if (bb.Height()) {
@@ -124,6 +132,11 @@ NVRect GROctava::getExtensionLine (const NEPointerList * assoc, GuidoPos start, 
 				if (top < outRect.top) outRect.top = outRect.bottom = top - fTextHeight;
 			}
 		}
+	}
+	const GRStaff* firstStaff = first->getGRStaff();
+	if (getGRStaff()->getStaffNumber() != firstStaff->getStaffNumber()) {
+		outRect.top += firstStaff->getPosition().y;
+		outRect.bottom += firstStaff->getPosition().y;
 	}
 	return outRect;
 }
@@ -185,9 +198,9 @@ void GROctava::OnDraw( VGDevice & hdc) const
 	if (fText.empty()) 	return;		// nothing to draw
 	if (fHidden) 		return;		// nothing to draw
 	GRSystemStartEndStruct * sse = getSystemStartEndStruct(gCurSystem);
+	const GRStaff* staff = getGRStaff();
 
 	const GRSystem * sys = sse->grsystem ? sse->grsystem : gCurSystem;
-	
 	TSegment seg;
 	if (fSegmentsMap.empty()) {		// assume there is a single segment
 		// actually this segment might be associated to another GROctava,
@@ -199,6 +212,18 @@ void GROctava::OnDraw( VGDevice & hdc) const
 	}
 	else {
 		NVRect r = getExtensionLine(getAssociations(), sse->startpos, sse->endpos);
+		if (staff->getStaffNumber() != gCurStaff->getStaffNumber()) {
+			float offset = gCurStaff->getPosition().y - staff->getPosition().y;
+			if (staff->getStaffNumber() > gCurStaff->getStaffNumber()) {
+				r.top 	-= offset;
+				r.bottom -= offset;
+			}
+			else if (staff->getStaffNumber() < gCurStaff->getStaffNumber()) {
+				r.top 	+= offset;
+				r.bottom += offset;
+			}
+		}
+
 		auto i = fSegmentsMap.find(sys);
 		if (i != fSegmentsMap.end()) {
 			seg = i->second;
@@ -220,7 +245,6 @@ void GROctava::OnDraw( VGDevice & hdc) const
 
 	if (seg.index == 1)
 		drawText (seg, hdc);
-//cerr << (void*)sys << " " << (void*)this << " " << fOctava << " GROctava::OnDraw [" << seg.x1 << ", " << seg.x2 << "] " << seg.index << endl;
 	drawLine (seg, seg.index >= fSegmentsMap.size(), hdc );
 }
 
@@ -230,16 +254,16 @@ void GROctava::tellPosition(GObject * caller, const NVPoint & position)
 	if (!fOctava) return;		// ignore when no octava
 
 	GRNotationElement * grel =  dynamic_cast<GRNotationElement *>(caller);
-	if( grel == 0 ) return;
+	if( !grel ) return;
 
 	GRStaff * staff = grel->getGRStaff();
-	if( staff == 0 ) return;
+	if( !staff ) return;
 
 	GRSystemStartEndStruct * sse = getSystemStartEndStruct(staff->getGRSystem());
 	assert(sse);
 	
 	const GRSystem* sys = sse->grsystem ? sse->grsystem : gCurSystem;
-//cerr << (void*)sys << " " << (void*)this << " " << fOctava << " GROctava::tellPosition " << grel << " " << sse->startflag << "-" << sse->endflag << " pos: " << position << endl;
+//cerr << (void*)sys << " " << (void*)this << " " << fOctava << " GROctava::tellPosition " << grel << " pos.y: " << position.y << " on staff " << staff->getStaffNumber()  << endl;
 	TSegment segment = fSegmentsMap[sys];
 	if (!segment.x1) {
 		segment.x1 = position.x;

@@ -2,10 +2,35 @@ GUIDO Engine history
 
 
 ----------------------------------------------------------------
+  version 1.7.7
+- introduce special system variables at gmn level to control engine settings 
+- support for line break ('\n') in text elements
+- add new 'hidden' parameter to \meter
+- support for guitar tablatures
+	- add new 'TAB' clef
+	- add new 'TAB' style to \staffFormat
+	- add new note style for tablatures
+- fix crash bug with repeat begin
+- fix issue #168: Slur Collision when the slur spams more than one system
+- fix issue #170: Dots not drawn in Tuplets
+- fix issue #171: Incorrect beam dash direction
+- fix issue #169: Double flat is rendered as four if repeated on a 2nd voice
+- fix issue #164: Conflicting notes on a multi voices staff 
+- fix occasional incorrect dots placement in repeatEnd (depending on context)
+- fix issue #173: Cross Staff Grace Notes rendering issue with Beaming
+- fix issue #174: Octavia on cross-staff can lead to destructor crash + incorrect rendering
+
+----------------------------------------------------------------
   version 1.7.6
 - fix crash bug related to pageFormat (issue #159)
-- new \auto tag parameter: resolveMultiVoiceCollisions intended to multi voices note collisions (issue #158)
+- new \auto tag parameter: resolveMultiVoiceCollisions intended to multi-voices note collisions (issue #158)
 - fix incorrect font format (issue #157)
+- fix incorrect beaming (issue #161)
+- fix incorrect beaming (issue #136)
+- fix incorrect beaming (issue #58)
+- fix incorrect beaming (issue #154)
+- fix incorrect beaming (issue #88)
+- fix incorrect beaming (issue #137)
 
 ----------------------------------------------------------------
   version 1.7.5

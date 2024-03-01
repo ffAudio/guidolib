@@ -36,6 +36,9 @@ class ARNote : public ARMusicalEvent
 				 ARNote( const ARNote & arnote, bool istied=false );
 		virtual ~ARNote();
 
+		virtual void operator=(const ARNote* note);
+
+		virtual ARNote*	Clone(bool istied = false ) const;
 		virtual int		CompareNameOctavePitch( const ARNote & nt );
 		virtual void	setDuration( const TYPE_DURATION & newdur );
 		virtual bool	CanBeMerged( const ARMusicalEvent * ev2 );
@@ -48,10 +51,6 @@ class ARNote : public ARMusicalEvent
 		virtual std::string getGMNName() const;
 
 		virtual void browse(TimeUnwrap& mapper) const;
-
-		// start time position has been introduced to get correct time position for notes in chords [DF 2012-03-19]
-		virtual void						setStartTimePosition(const TYPE_TIMEPOSITION  & pos)	{ fStartPosition = pos; }
-		virtual const TYPE_TIMEPOSITION&	getStartTimePosition() const;
 
 		void		 addFlat();
 		void	 	 addSharp();
@@ -100,6 +99,7 @@ class ARNote : public ARMusicalEvent
 		virtual const ARNote*	isARNote() const		{ return this; }
 		virtual bool			isEmptyNote() const		{ return getName() == "empty"; }
 		bool		isAuto() const						{ return fAuto; }
+		void		setAuto(bool val)					{ fAuto = val; }
 
 
 	private:
@@ -120,9 +120,6 @@ class ARNote : public ARMusicalEvent
 		const ARAlter *   fAlter	= 0;
 
 		bool		fTrillOwner = false;
-	
-		TYPE_TIMEPOSITION	fStartPosition;
-
 		NVstring   fNoteAppearance;
 		int		   fOctava;			// for octava signs
 };

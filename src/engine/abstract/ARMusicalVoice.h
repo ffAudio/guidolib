@@ -35,6 +35,7 @@ class ARMusic;
 class ARMusicalTag;
 class ARChordTag;
 class ARShareLocation;
+class ARShareStem;
 class ARGrace;
 class ARNote;
 class ARClef;
@@ -89,7 +90,7 @@ class ARMusicalVoice : public ObjectList, public ARMusicalEvent
 		void			MarkVoice(int fromnum,int fromdenom, int lengthnum, int lengthdenom, unsigned char red, unsigned char green, unsigned char blue);
 
 		virtual void	    initChordNote();
-		virtual void	    FinishChord();
+		virtual void	    FinishChord(bool regular = true);
 		virtual ARChordTag *BeginChord();
 
 		ARNote        * setTrillChord(CHORD_TYPE & param_type, CHORD_ACCIDENTAL & param_accidental);
@@ -200,13 +201,14 @@ class ARMusicalVoice : public ObjectList, public ARMusicalEvent
 		void doAutoBeaming();
 		void doAutoGlissando();
 		void doAutoFeatheredBeam();
+		void doAutoFixOctavaStaff();
 
 		void doMicroTonal();
 		void getOctava(int voice, std::map< int, std::vector<AROctava*> >& list);
 
 		void CloseBase			( ARBase * curbase, ARTuplet * autotuplet, GuidoPos lastevpos, GuidoPos FLA);
 		void ReplacePositionTag	( const ARPositionTag * ptold, ARPositionTag * ptnew, ARMusicalVoiceState & vst, const char * endtagname = 0 );
-		void InsertDisplayDurationTag (const TYPE_DURATION & dispdur, int b_punkt, const TYPE_TIMEPOSITION & tp,
+		const ARDisplayDuration* InsertDisplayDurationTag (const TYPE_DURATION & dispdur, int b_punkt, const TYPE_TIMEPOSITION & tp,
 										GuidoPos pos, ARMusicalVoiceState & vst, int setptagpos = 1);
 
 		GuidoPos			  lastevposition;
@@ -223,8 +225,8 @@ class ARMusicalVoice : public ObjectList, public ARMusicalEvent
 		StartPositionTagList *	mStartPosTagList;
 	
 	private:
-        void        finishChordWithOneChordGroup     (TYPE_DURATION &chorddur);
-        void        finishChordWithSeveralChordGroups(TYPE_DURATION &chorddur);
+        void        finishChordWithOneChordGroup     (TYPE_DURATION &chorddur, bool regular);
+        void        finishChordWithSeveralChordGroups(TYPE_DURATION &chorddur, bool regular);
 
 		GuidoPos	CopyChord( ARMusicalVoiceState & vst, TYPE_TIMEPOSITION tp, const TYPE_DURATION & newdur);
 		ARClef*		newAutoClef(ARClef* oldclef, const TYPE_TIMEPOSITION& tp);
@@ -240,10 +242,13 @@ class ARMusicalVoice : public ObjectList, public ARMusicalEvent
 		bool			beamOnBeat(const TYPE_TIMEPOSITION t, const TYPE_DURATION meter, const std::vector<Fraction>& numvec) const;
 		bool			beamCrossBeat(const TYPE_TIMEPOSITION beamstart, const TYPE_DURATION beamdur, const TYPE_DURATION meter, const std::vector<Fraction>& numvec) const;
 		ARMusicalEvent* beamNextEv (const GuidoPos pos, const ARMusicalVoiceState) const;
-	
+		ARShareStem *	createSharedStem(ARChordGroup* group);
+		
 		// reorder tags before a possible break to put them after the break:
 		// tags handled are: octava
 		void			checkpbreak();
+		
+		
         std::vector<ARRepeatBegin *> *repeatBeginList;
 		std::vector<ARNote *> getCurrentChordNotes () const;
 };

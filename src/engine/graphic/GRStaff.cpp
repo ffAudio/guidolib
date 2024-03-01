@@ -237,6 +237,7 @@ GRStaffState & GRStaffState::operator=(const GRStaffState & state)
 	}
 	
 	fMeasureAccidentals = state.fMeasureAccidentals;
+	fInstrument = state.fInstrument;
 
 	// clef-Parameter
 	clefset		= state.clefset; // CLEFINTERN, CLEFEXPLICIT, CLEFAUTO, [ CLEFOFF ]
@@ -542,11 +543,12 @@ void GRStaff::checkMultiVoiceNotesCollision ()
 					const ARNote* first = elt.first->getARNote();
 					const ARNote* second = note->getARNote();
 					if ((first->getOctave() == second->getOctave()) &&  (std::abs(first->getPitch() - second->getPitch()) == 1)) {
-						NVPoint npos = note->getPosition();
-						shift = getStaffLSPACE() * 0.83f;
+						GRSingleNote* target = note;
+						NVPoint npos = target->getPosition();
+						shift = getStaffLSPACE() * ((target->getStemDirection() == dirUP) ? -0.9f : 0.83f);
 						npos.x += shift;
-						note->setPosition(npos);
-						GRBeam* beam = beamed[note];
+						target->setPosition(npos);
+						GRBeam* beam = beamed[target];
 						if (beam) beam->refreshPosition();			// beams of shifted note needs to ne refreshed
 						break;
 					}
@@ -901,11 +903,19 @@ float GRStaff::getKeyPosition(TYPE_PITCH pit, int numkeys) const
 /** \brief Returns the graphical y-position of a note.
 
 	Idea: Each clef has a root-note  (violin-
-	clef has G, base-clef has F) and a 
+	clef has G, base-clef has F) and a
 	corresponding staff line
-
 */
 float GRStaff::getNotePosition(TYPE_PITCH pit, TYPE_REGISTER oct) const
+{
+//cerr << "GRStaff::getNotePosition " << pit << " " << oct << " state: " << mStaffState.basepit << " " << mStaffState.baseline << " " <<  mStaffState.baseoct << endl;
+	return getNotePosition(pit, oct, mStaffState.basepit, mStaffState.baseline, mStaffState.baseoct);
+}
+
+// ----------------------------------------------------------------------------
+/** \brief Returns the graphical y-position of a note.
+*/
+float GRStaff::getNotePosition(TYPE_PITCH pit, TYPE_REGISTER oct, int basePitch, int baseLine, int baseOct) const
 {
 // redundant correction of octave: already shifted when the GRNote is created
 //	oct -= mStaffState.octava;	//  depends on current clef.
@@ -914,18 +924,18 @@ float GRStaff::getNotePosition(TYPE_PITCH pit, TYPE_REGISTER oct) const
 	float calc = 0;
 	if (pit >= NOTE_C && pit <= NOTE_H)
 	{
-		calc = (float)((mStaffState.basepit - pit ) * myHalfSpace + mStaffState.baseline * getStaffLSPACE() -
-			((int)oct - mStaffState.baseoct) * (7 * myHalfSpace));
+		calc = (float)((basePitch - pit ) * myHalfSpace + baseLine * getStaffLSPACE() -
+			((int)oct - baseOct) * (7 * myHalfSpace));
 	}
 	else if (pit>= NOTE_CIS && pit <= NOTE_DIS)
 	{
-		calc = (float)((mStaffState.basepit - (pit - 7) )* myHalfSpace + mStaffState.baseline * getStaffLSPACE()-
-			((int)oct - mStaffState.baseoct) * (7 * myHalfSpace));
+		calc = (float)((basePitch - (pit - 7) )* myHalfSpace + baseLine * getStaffLSPACE()-
+			((int)oct - baseOct) * (7 * myHalfSpace));
 	}
 	else if (pit>= NOTE_FIS && pit <= NOTE_AIS)
 	{
-		calc = (float)((mStaffState.basepit - (pit - 6) )* myHalfSpace + mStaffState.baseline * getStaffLSPACE() -
-			((int)oct - mStaffState.baseoct) * (7 * myHalfSpace));
+		calc = (float)((basePitch - (pit - 6) )* myHalfSpace + baseLine * getStaffLSPACE() -
+			((int)oct - baseOct) * (7 * myHalfSpace));
 	}
 	return calc;
 }
@@ -1257,11 +1267,11 @@ GRInstrument * GRStaff::AddInstrument(const ARInstrument * arinstr)
 {
 	GRInstrument * tmp = new GRInstrument(arinstr, this);
 	addNotationElement(tmp);
+	if (arinstr->repeat())
+		mStaffState.fInstrument = tmp;
 	bool downwards = true;
 
 	// now we need to test, whether the instrument is transposed (e.g. "clarinet in A")
-//	const TagParameterString * ts = arinstr->getTransp();
-//	if ( ts && ts->TagIsSet())
 	const string& ts = arinstr->getTransp();
 	if ( ts.size() )
 	{
@@ -1349,7 +1359,8 @@ GRInstrument * GRStaff::AddInstrument(const ARInstrument * arinstr)
 GRBar * GRStaff::AddBar(ARBar * abar, const TYPE_TIMEPOSITION & date)
 {
 staff_debug("AddBar");
-	newMeasure(date); // erhoeht u.a. mnum!
+	newMeasure(date, !fInhibitNextReset2key); // erhoeht u.a. mnum!
+	fInhibitNextReset2key = false;
 
 	if (mStaffState.curbarfrmt) abar->setRanges(mStaffState.curbarfrmt->getRanges());
 	GRBar * bar = new GRBar( abar, this, date, fProportionnalRendering);
@@ -1498,7 +1509,9 @@ staff_debug("EndStaff 2");
 GRDoubleBar * GRStaff::AddDoubleBar(ARDoubleBar * ardbar, const TYPE_TIMEPOSITION & date)
 {
 staff_debug("AddDoubleBar");
-	newMeasure(date); // erhoeht u.a. mnum!
+	newMeasure(date, !fInhibitNextReset2key); // erhoeht u.a. mnum!
+	fInhibitNextReset2key = false;
+
 	if (mStaffState.curbarfrmt) ardbar->setRanges(mStaffState.curbarfrmt->getRanges());
 	GRDoubleBar * ntakt = new GRDoubleBar( ardbar, this, date, fProportionnalRendering);
 	// depending on current bar Format, we have to tell the staffmanager (or the system) 
@@ -1534,6 +1547,7 @@ void GRStaff::CreateBeginElements( GRStaffManager * staffmgr, GRStaffState & sta
 staff_debug("CreateBeginElements");
 	mStaffState.basepitoffs = state.basepitoffs;
 	mStaffState.instrNumKeys = state.instrNumKeys;
+	mStaffState.fInstrument = state.fInstrument;
 	
 	// we have to look, what kind of state-settings are set.
 	if (state.curbarfrmt != NULL)
@@ -1807,6 +1821,8 @@ void GRStaff::setStaffFormat( const ARStaffFormat * staffrmt)
 		const TagParameterFloat* size = staffrmt->getSize();
 		if (size && size->TagIsSet())
 			mStaffState.staffLSPACE = size->getValue() * 2;
+		else if (staffrmt->isTAB())
+			mStaffState.staffLSPACE = 70.f;
 		
 		mStaffState.numlines = staffrmt->getLinesCount();		
         mStaffState.lineThickness = staffrmt->getLineThickness();
@@ -1841,6 +1857,7 @@ void GRStaff::setInstrumentFormat(const GRStaffState & state)
 	{
 		mStaffState.instrKeyArray[i] = state.instrKeyArray[i];
 	}
+	mStaffState.fInstrument = state.getRepeatInstrument();
 }
 
 // ----------------------------------------------------------------------------
@@ -1863,6 +1880,7 @@ staff_debug("setStaffState");
 	mStaffState.keyset = state->keyset;
 	mStaffState.curkey = state->curkey;
 	mStaffState.numkeys = state->numkeys;
+	mStaffState.fInstrument = state->fInstrument;
 	mStaffState.fMultiVoiceCollisions = state->fMultiVoiceCollisions;
 	for ( int i = 0; i < NUMNOTES; ++i )
 	{
@@ -2187,7 +2205,6 @@ void GRStaff::GetMap( GuidoElementSelector sel, MapCollector& f, MapInfos& infos
 void GRStaff::OnDraw( VGDevice & hdc ) const
 {
     traceMethod("OnDraw");
-
 #if 0
 	// - Change font settings
 	const int fontsize = getFontSize();
@@ -2211,6 +2228,12 @@ void GRStaff::OnDraw( VGDevice & hdc ) const
 	
 	// - 
 	DrawNotationElements(hdc);
+
+	
+	if ((mPosition.x == 0)  && getStaffState()->getRepeatInstrument()) {
+		const GRInstrument* instr = getStaffState()->getRepeatInstrument();
+		if (instr) instr->OnDraw (hdc, mPosition.y);
+	}
 
 	if (gBoundingBoxesMap & kStavesBB)
 		DrawBoundingBox(hdc, kStaffBBColor);

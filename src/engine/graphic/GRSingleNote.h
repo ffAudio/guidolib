@@ -90,14 +90,16 @@ class GRSingleNote : public GRNote
 		// This sets Stem On or Off (1 == on, 0 == off)
 		virtual void	setStemOnOff( bool p );
 
-		virtual float	changeStemLength( float inLen );
-		virtual float	setStemLength( float inLen );
+		virtual float	changeStemLength( float inLen, bool force = false );
+		virtual float	setStemLength( float inLen, bool userLength = false );
 		virtual GDirection getStemDirection() const;
 		virtual NVPoint getStemStartPos() const;
 		virtual NVPoint getStemEndPos() const;
 		virtual float	getStemLength() const;
-	    virtual bool	getStemDirSet() const  	{ return mStemDirSet; }
+	    virtual bool	getStemDirSet() const  		{ return mStemDirSet; }
 		virtual bool	getStemLengthSet() const	{ return mStemLengthSet; }
+		virtual bool	userLength() const			{ return fUserLength; }
+		virtual bool	isTab() const				{ return false; }
 
 		// -
 		virtual const TYPE_DURATION & getDurTemplate() const { return mDurTemplate; }
@@ -115,9 +117,10 @@ class GRSingleNote : public GRNote
 
         ARTHead::HEADSTATE getHeadState() { return mHeadState; }
 
-        void forceAppearance();
-		const GRStem *getStem() const;
-		float getNoteWidth() const			{ return mNoteBreite; }
+        void 			forceAppearance();
+		const GRStem *	getStem() const;
+		float 			getNoteWidth() const	{ return mNoteBreite; }
+		void			hideHead ();
 
 protected:
 	GRStem *	  getStem();
@@ -139,6 +142,7 @@ private:
 	float		    mStemLen;
 	bool 		    mStemLengthSet;
 	bool 		    mStemDirSet;
+	bool 		    fUserLength = false;
 
 	static float 	fLedgeWidth;
 

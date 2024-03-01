@@ -47,6 +47,7 @@ GRRepeatBegin::GRRepeatBegin(const ARRepeatBegin *ar, GRStaff * inStaff, bool p_
     fDx = ar->getDX()->getValue();
     fDy = ar->getDY()->getValue();
 	updateBoundingBox();
+	if (ar->hidden()) mShow = false;
 }
 
 // --------------------------------------------------------------------------
@@ -58,6 +59,13 @@ void GRRepeatBegin::setPosTo(GCoord posy)		{ mBoundingBox.bottom = posy; }
 
 const ARRepeatBegin* GRRepeatBegin::getARRepeatBegin() const {
 	return dynamic_cast<const ARRepeatBegin*>(getAbstractRepresentation());
+}
+
+// --------------------------------------------------------------------------
+void GRRepeatBegin::accept (GRVisitor& visitor)
+{
+	visitor.visitStart (this);
+	visitor.visitEnd (this);
 }
 
 // --------------------------------------------------------------------------
@@ -148,8 +156,10 @@ void GRRepeatBegin::DrawDots( VGDevice & hdc ) const
 	}
 
     float x  = getXOffset() + hlspace * 2.4f;
+    const VGFont* savedfont = hdc.GetMusicFont();
     DrawSymbol(hdc, kDotSymbol, x, y1, pointSize);
     DrawSymbol(hdc, kDotSymbol, x, y2, pointSize);
+    hdc.SetMusicFont(savedfont);
 }
 
 // --------------------------------------------------------------------------
@@ -192,7 +202,7 @@ void GRRepeatBegin::OnDraw(VGDevice & hdc ) const
 			int n = staves->size();
 			for( int i = staves->GetMinimum(); i <= staves->GetMaximum(); ++i) {
 				const GRStaff* tmp = staves->Get(i);
-				float bottom = tmp->getPosition().y + tmp->getDredgeSize();
+				float bottom = tmp ? (tmp->getPosition().y + tmp->getDredgeSize()) : 0;
 				if (bottom > y) y = bottom;
 			}
 		}

@@ -18,7 +18,6 @@
 #include "ARTStem.h"
 #include "GRAccidental.h"
 #include "GRBeam.h"
-#include "GREmpty.h"
 #include "GRFlag.h"
 #include "GRGlobalStem.h"
 #include "GRNoteDot.h"
@@ -455,8 +454,8 @@ void GRGlobalStem::updateGlobalStem(const GRStaff * inStaff)
 	float prevposy = 0;	// (JB) warning, was not initialized. I don't know if 0 is a good init value ! TODO: verify.
 
 	// the first element is in most cases the empty-event!?
-	GRSingleNote * note = dynamic_cast<GRSingleNote *>(fFirstEl);
-	if (note) {
+	GRSingleNote * note = fFirstEl->isSingleNote();
+	if (note && ! note->isTab()) {
 		note->adjustHeadPosition(ARTHead::NORMAL);
 		note->updateBoundingBox();
 	}
@@ -478,8 +477,11 @@ void GRGlobalStem::updateGlobalStem(const GRStaff * inStaff)
 		GuidoPos pos = mAssociated->GetHeadPosition();
 		while (pos)
 		{
-			note = dynamic_cast<GRSingleNote *>(mAssociated->GetNext(pos));
-			if (note)
+			GRNotationElement* elt = mAssociated->GetNext(pos);
+			note = elt->isSingleNote();
+			if (note && note->isTab())
+				continue;
+			else if (note)
 			{
 				if (prevHeadState != ARTHead::NOTSET)
 				{
@@ -760,7 +762,7 @@ void GRGlobalStem::updateGlobalStem(const GRStaff * inStaff)
 
 		// - Adjust stem length if it's a cross/triangle notehead
 
-		if (fHigherNote)
+		if (fHigherNote && !fHigherNote->isTab())
 		{
 			ConstMusicalSymbolID higherNoteSymbol = fHigherNote->getNoteHead()->getSymbol();
 
@@ -826,9 +828,9 @@ void GRGlobalStem::OnDraw( VGDevice & hdc) const
 }
 
 //----------------------------------------------------------------
-float GRGlobalStem::changeStemLength( float inLen )
+float GRGlobalStem::changeStemLength( float inLen, bool force )
 {
-	if (fStemlengthSet) {
+	if (fStemlengthSet && !force) {
 		GuidoWarn("Stemlength already set!");
 		if (fStem) return fStem->getStemLength();
 	}

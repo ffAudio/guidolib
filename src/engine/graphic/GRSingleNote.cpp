@@ -110,12 +110,7 @@ void GRSingleNote::GetMap( GuidoElementSelector sel, MapCollector& f, MapInfos& 
 		if (dur.getNumerator() == 0) {		// notes in chords have a null duration
 			dur = getDurTemplate();
         }
-//		const ARNote * ar = getARNote();
-//		std::cout << "mapped pos: " << ar->getStartTimePosition() << " ar pos: " << ar->getRelativeTimePosition() << " ";
-//		ar->print(std::ostream& os);
-		// ARNote and GRNote don't have the same time position in chords
-		// actually chord notes have a wrong time position, it has been corrected in ARMusicalVoice::FinishChord
-        SendMap (f, getARNote()->getStartTimePosition(), dur, (isGraceNote() ? kGraceNote : kNote), infos);
+        SendMap (f, getARNote()->getRelativeTimePosition(), dur, (isGraceNote() ? kGraceNote : kNote), infos);
 	}
 }
 
@@ -219,6 +214,29 @@ void GRSingleNote::OnDraw( VGDevice & hdc) const
 	
 //	NVRect r = getEnclosingBox (false, false, true);
 //	hdc.Frame(r.left, r.top, r.right, r.bottom);
+
+
+//cerr << "GRSingleNote::OnDraw" << endl;
+//	float x, y;
+//	TYPE_TIMEPOSITION d = getRelativeTimePosition();
+//	d += float(getDuration()) / 2;
+//	GuidoDate date;
+//	date.num = d.getNumerator();
+//	date.denom = d.getDenominator();
+//	const ARNote* ar = getARNote();
+//	int pitch = ar->getMidiPitch();
+//	GuidoErrCode err = GuidoGetPitchPos( gDebugGr, 1, pitch, date, x, y);
+//	if (err == guidoNoErr) {
+//		float w = 25;
+//cerr << "GRSingleNote::OnDraw  pitch " << pitch << " pos at " << date << " " << x << " " << y <<  " note pos: " << getPosition() <<  endl;
+//		hdc.PushFillColor(VGColor(250,0,0, 180));
+//		hdc.Rectangle(x-w, y-w, x+w, y+w);
+//		hdc.PopFillColor();
+//	}
+//	else
+//cerr << "GRSingleNote::OnDraw  pitch err " << err << endl;
+
+
 }
 
 //____________________________________________________________________________________
@@ -346,7 +364,7 @@ void GRSingleNote::createNote(const TYPE_DURATION & p_durtemplate)
 	if (accidentals > 2) accidentals = 2;
 	else if (accidentals < -2) accidentals = -2;
 
-	mGrStaff->checkSystemBar (arNote->getStartTimePosition());
+	mGrStaff->checkSystemBar (arNote->getRelativeTimePosition());
 	AccList * mylist = mGrStaff->askAccidentals(pitch, octave, accidentals, arNote->getDetune());
 	if (!mylist->empty()) {
 		GuidoPos pos = mylist->GetHeadPosition();
@@ -455,6 +473,14 @@ void GRSingleNote::forceAppearance()
 }
 
 //____________________________________________________________________________________
+void GRSingleNote::hideHead ()
+{
+	if (mNoteHead)
+		mNoteHead->setHaveToBeDrawn(false);
+	else mStyle = "none";
+}
+
+//____________________________________________________________________________________
 /** \brief Called by GRGlobalStem to allow the note to adjust its headposition.
 
 	If head Headstate is set by the user the sugHeadState (suggested Head State) is just ignored.
@@ -540,9 +566,11 @@ NVRect GRSingleNote::getEnclosingBox(bool includeAccidentals, bool includeSlurs,
 	if (!getDuration()) {
 		// we're in a chord, needs to add the stem
 		const GRStem * stem = getStem();
-		NVRect r = stem->getBoundingBox();
-		r += stem->getPosition();
-		outrect.Merge (r);
+		if (stem) {
+			NVRect r = stem->getBoundingBox();
+			r += stem->getPosition();
+			outrect.Merge (r);
+		}
 	}
 	if (!includeAccidentals) {
 		outrect.left = mPosition.x - mNoteBreite / 2 * getSize();
@@ -799,8 +827,9 @@ void GRSingleNote::setBeamStem(GRBeam * beam, GCoord pos)
 }
 
 //____________________________________________________________________________________
-float GRSingleNote::setStemLength( float inLen )
+float GRSingleNote::setStemLength( float inLen, bool userLength)
 {
+	fUserLength = userLength;
 	if (mGlobalStem) {
 		mGlobalStem->setNoteStemLength( this, inLen);
 		return (float)mGlobalStem->getStemLength();
@@ -826,29 +855,21 @@ float GRSingleNote::setStemLength( float inLen )
 }
 
 //____________________________________________________________________________________
-float GRSingleNote::changeStemLength( float inLen )
+float GRSingleNote::changeStemLength( float inLen, bool force )
 {
-	if (mStemLengthSet)
+	if (mStemLengthSet && !force)
         return mStemLen;
 
 	setStemLength(inLen);
-	// this makes sure, that we don't think that
-	// the stemlength was changed with a parameter.
+	// this makes sure, that we don't think that the stem length was changed with a parameter.
 	mStemLengthSet = false;
 
 	GRNEList::iterator ptr;
 	GRNEList& articulations = getArticulations();
 	sort (articulations.begin(), articulations.end(), GRArticulation::compare);
-	for( GRNEList::iterator i = articulations.begin(); i != articulations.end(); i++ ) {
-		(*i)->tellPosition( this, mPosition );
+	for(auto art: articulations) {
+		art->tellPosition( this, mPosition );
 	}
-
-//	NEPointerList & list = GetCompositeElements();
-//	GuidoPos pos = list.GetHeadPosition();
-//	while (pos) {
-//		GRNotationElement* e = list.GetNext(pos);
-//		e->tellPosition( this, mPosition );
-//	}
 	return mStemLen;
 }
 

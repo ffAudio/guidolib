@@ -49,11 +49,26 @@ static  char* unescape (char * str) {
 	int n = strlen(str);
 	for (int i=0, j=0; i <= n; i++) {		
 		if (str[i] == '\\') {
-			if (str[i+1] == '\\') {
-				str[j++] = str[i++];
-			}
-			else if (str[i+1] != '"') {
-				str[j++] = str[i];
+			switch (str[i+1]) {
+				case '\\':
+					str[j++] = str[i++];
+					break;
+				case 'n':
+					str[j++] = '\n';
+					i++;
+					break;
+				case '"':
+				case '\'':
+					break;
+
+				case ';':
+				case ' ':
+					str[j++] = str[++i];
+					break;
+				
+				default:
+					str[j++] = str[i];
+					break;
 			}
 		}
 		else str[j++] = str[i];
@@ -141,10 +156,12 @@ EOL		[\x0a\x0d]
 "cis"|"dis"|"fis"|"gis"|"ais"				yyextra->fText = yytext; return CHROMATIC;
 {NOTE}				yyextra->fText = yytext; return DIATONIC;
 "empty"				yyextra->fText = yytext; return EMPTYT;
+"s"[1-6]			yyextra->fText = yytext; return TAB;
 "_"					return RESTT;
 
 \"(\\\\|\\.|[^\\\"])*\"   unescape(yytext); unquote(yytext); yyextra->fText = yytext; return STRING;
 \'(\\\\|\\.|[^\\\'])*\'   unescape(yytext); unquote(yytext); yyextra->fText = yytext; return STRING;
+":"(\\[: ]|[^:\\\n])*":"    unescape(yytext); unquote(yytext); yyextra->fText = yytext; return FRETTE;
 
 {SPACE}+			/* eat up space */
 

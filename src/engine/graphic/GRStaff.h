@@ -24,43 +24,43 @@ class ARBar;
 class ARBarFormat;
 class ARClef;
 class ARDoubleBar;
-class ARKey;
+class ARFinishBar;
+class ARInstrument;
 class ARInstrument;
 class ARIntens;
+class ARKey;
+class ARMeter;
+class ARMusicalVoiceState;
 class AROctava;
 class ARRepeatBegin;
 class ARRepeatEnd;
 class ARRepeatEndRangeEnd;
-class ARFinishBar;
-class ARText;
-class ARMeter;
-class ARMusicalVoiceState;
 class ARStaffFormat;
+class ARText;
 
-class GRVoice;
+class GRBar;
 class GRClef;
-class GRNote;
-class GRMeter;
-// class GRNoteFactory;
+class GRDoubleBar;
+class GRFinishBar;
+class GRGlue;
+class GRInstrument;
+class GRIntens;
 class GRKey;
+class GRMeter;
+class GRNote;
+class GROctava;
+class GRPossibleBreakState;
+class GRRepeatBegin;
+class GRRepeatEnd;
+class GRRod;
+class GRSpring;
 class GRStaffManager;
-class GRVoiceManager;
 class GRSystem;
 class GRSystemSlice;
-class GRGlue;
-class GRSpring;
-class GRRod;
-class GRFinishBar;
-class GRInstrument;
-
-class GRRepeatEnd;
-class GRRepeatBegin;
-class GRDoubleBar;
-class GRIntens;
 class GRText;
-class GRBar;
-class GRPossibleBreakState;
-class GROctava;
+class GRVoice;
+class GRVoiceManager;
+
 class TCollisions;
 
 class TagParameterFloat;
@@ -121,12 +121,15 @@ class GRStaffState
         void setStaffLSPACE(float value)                        { staffLSPACE = value * 2; } // Factor 2 to be consistent with GRStaff::setStaffFormat(ARStaffFormat * staffrmt)
         void setMultiVoiceCollisions(bool state)                { fMultiVoiceCollisions = state; }
         bool multiVoiceCollisions() const                       { return fMultiVoiceCollisions; }
+        const MeasureAccidentals& getMeasureAccidentals() const { return fMeasureAccidentals; }
+        const GRInstrument* getRepeatInstrument() const 		{ return fInstrument; }
 
 	private:
 		// Meter-Parameters
 		bool	meterset;		// flag if meter-sig is given . TRUE, FALSE
 
 		const ARMeter * curmeter;
+		const GRInstrument *  fInstrument = nullptr;	// instrument to be repeated on every system
 		// Noteparameter
 		bool	keyset;							// flag for if key-sig is given
 		int		numkeys;						// number of accidentals, neede for GRKey.
@@ -207,6 +210,7 @@ class GRStaff : public GRCompositeNotationElement
         const ARMeter *			getCurMeter() const		{ return mStaffState.curmeter; }
 
 		virtual float       getNotePosition(TYPE_PITCH pit, TYPE_REGISTER oct) const;
+		virtual float 		getNotePosition(TYPE_PITCH pit, TYPE_REGISTER oct, int basePitch, int baseLine, int baseOct) const;
 		virtual GDirection  getDefaultThroatDirection(TYPE_PITCH pit, TYPE_REGISTER oct) const;
 		virtual int         getNumHelplines(TYPE_PITCH pit, TYPE_REGISTER oct) const;
 		virtual VGColor     getNoteColor(TYPE_PITCH pit) const;
@@ -294,7 +298,7 @@ class GRStaff : public GRCompositeNotationElement
 		void	checkMultiVoiceNotesCollision ();
 		float	getNotesDensity () const;
 		size_t	getLyrics (std::vector<const GRNotationElement*>& list) const;
-	
+		void	inhibitNextReset2Key()		{ fInhibitNextReset2key = true; }
 
   protected:
 		void	DebugPrintState(const char * info) const;
@@ -333,7 +337,8 @@ class GRStaff : public GRCompositeNotationElement
 		std::map<float, float> fPositions;
 		bool			isNextOn;
 		bool			firstOnOffSetting;
-
+		
+		bool			fInhibitNextReset2key = false;
 		float			fProportionnalRendering;
 };
 
